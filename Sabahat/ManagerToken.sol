@@ -44,16 +44,17 @@ contract ManageRentals  {
       uint deposit;
       WorkflowStatus status;
       bool exists; 
+
    }
    // mapping listingid => week of => rental
-   mapping(uint => mapping(uint => Rental) ) public _propertyRentals;
+   mapping(uint => mapping(uint => Rental) ) private _propertyRentals;
    //mapping(uint => mapping(uint => Rental[]) ) public _propertyReservations;
    
    // listingid => weekof => renter => depoist
    mapping( uint => mapping(uint => mapping(address => uint))) public _depositsFee;
    
    // listingid => weekof => owner => rent
-   mapping( uint => mapping(uint => mapping(address => uint))) public _rents;
+   mapping( uint => mapping(uint => mapping(address => uint))) private _rents;
    
    // listingid => weekof => nonRefundableFee, this is the contract service fee
    mapping( uint => mapping(uint => uint)) public _nonRefundableFee;
@@ -107,13 +108,6 @@ contract ManageRentals  {
    }
    
    // Pay the non refundable fee and reserve the rental
-   function nonRefundable(uint32 listingId, address payable renter, uint startDate ) public payable
-   {
-       address payable owner = listingAgent.getOwner(listingId);
-       uint weekOf = calculateWeekof(startDate);
-       _nonRefundable(listingId, renter, owner, weekOf, msg.value);
-       
-   }
    //Test function to see how to check if a rental exists
    function test(uint listingId, uint weekOf) public view returns (bool)
    {
@@ -126,13 +120,21 @@ contract ManageRentals  {
    }
  
    modifier RentalAvialable(uint listingId, uint weekOf) {
-       require(_propertyRentals[listingId][weekOf].status != WorkflowStatus.Available , "Property Already Booked");
+       require(_propertyRentals[listingId][weekOf].status != WorkflowStatus.Available , "Rental/Reservation already Exists");
        _;
    }
    
    modifier ValidNonRefundableFee(uint listingId, uint value) {
        require(listingAgent.getById(listingId).reservation == value, "Invalid nonRefundable Fee");
        _;
+   }
+   
+   function nonRefundable(uint32 listingId, address payable renter, uint startDate ) public payable
+   {
+       address payable owner = listingAgent.getOwner(listingId);
+       uint weekOf = calculateWeekof(startDate);
+       _nonRefundable(listingId, renter, owner, weekOf, msg.value);
+       
    }
    
    /// @dev reserves the object for any given time depending money sent and price of object   
@@ -160,6 +162,39 @@ contract ManageRentals  {
         
    }
 
+    modifier NonRefundableStatus(uint listingId, uint weekOf) {
+       require(_propertyRentals[listingId][weekOf].status == WorkflowStatus.NonRefundableFeePayed , "Need to pay the non fundable fee before depoist");
+       _;
+   }
+   
+   modifier ValidDeposit(uint listingId, uint value) {
+       require(listingAgent.getById(listingId).deposit == value, "Invalid nonRefundable Fee");
+       _;
+   }
+   
+   function depost(uint listingId, uint startDate) public payable
+   {
+       uint weekOf = calculateWeekof(startDate);
+       _deposit(listingId, weekOf, msg.value);
+   }
+   
+   function _deposit(uint listingId, uint weekOf, uint value) private
+    ValidDeposit(listingId, value) NonRefundableStatus(listingId, weekOf)
+   {
+       Rental storage newRental = _propertyRentals[listingId][weekOf];
+       
+       newRental.status = WorkflowStatus.DepositPayed;
+        
+        // create the Reservation token
+        DepositToken token = new DepositToken();
+        uint token_id = token.mintDeposit(listingId, newRental.owner, newRental.renter, newRental.weekOf,  value);
+        address token_address = address(token);
+        _depositTokens[newRental.renter].push(token_address);
+        newRental.depositTokenId = token_id;
+       _depositsFee[listingId][weekOf][newRental.renter] = value; 
+
+        
+   }
 }
 
 
