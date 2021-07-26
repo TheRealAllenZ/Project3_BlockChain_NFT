@@ -5,20 +5,31 @@ pragma experimental ABIEncoderV2;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/ownership/Ownable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/drafts/Counters.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/math/SafeMath.sol"; 
 //import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/AccessControl.sol";
+
+/*
+TO DO: Add more functions, this will only be completed finalized once the front end is done. 
+
+*/
+
+import "./AdminRole.sol";
 
 
 contract Listings  {
-    using Counters for Counters.Counter;
-
-    //bytes32 public constant ADMIN = keccak256("Admin");
-    //bytes32 public constant LISTING_OWNER = keccak256("LISTING_OWNER");
-    //bytes32 public constant RENTER = keccak256("RENTER");
     
-    enum  ListStatus { Available, Reserved, Rented, UnAvailable } 
-    ListStatus public status ;
+    // using counters and safemath
+    using Counters for Counters.Counter;
+    using SafeMath for uint;
+
+    // Status of the listing, Available/UnAvailable - ?? Need more status?
+    enum  ListStatus { Available, UnAvailable, Removed } 
+    
+    //ListStatus public status ;
+    
+    // A struct of the listing
     struct Listing {
-        uint id;
+        uint id; 
         address payable owner;
         string Url;
         uint rent;
@@ -28,115 +39,236 @@ contract Listings  {
         bool exists;
     }
     
-    Counters.Counter listingsId;
-    mapping(address => uint[]) public ownerListings;
-    address[] public owners;
-    Listing[] allListings;
+    // Listing Id
+    Counters.Counter _listingsId;
     
-    /*/// Listing does not exist
-    error ListingDoesNotExist;
-    */
+    // mapping of owner to listing Id array 
+    mapping(address => uint[]) public _ownerListings;
+    
+    // All owners??? Need to see if needed
+    address[] public _owners;
+    
+    // Array of listings
+    Listing[] _allListings;
+    
+    // Admin role
+    Admin admins;
+    
+    // events for listing Added, Updated and Removed    
+    event ListingAdded(uint indexed listingsId, address indexed owner, string listingURI);
+    event ListingRemoved(uint indexed listingsId, address indexed owner, string listingURI);
+    event ListingUpdated(uint indexed listingsId, address indexed owner, string listingURI);
+      
     constructor() public {
-        //grantRole(ADMIN, msg.sender);   
-        
-        
+        // Set Admin role to the deployer ??
+        //admins.addAdmin(msg.sender);
+    }
+
+    // modifier for OnlyIfListingIdExists
+    modifier OnlyIfListingIdExists(uint listingId)
+    {
+        require(listingId <= _listingsId.current(), "Invalid List Id");
+        _;
+    }
+    
+    // modifier for OnlyIfListingsNotEmpty
+    modifier OnlyIfListingsNotEmpty()
+    {
+        require( _listingsId.current() >0, "Listings are empty");
+        _;
+    }
+    
+    // modifier for OnlyIfListingIdExists
+    modifier OnlyIfOwnerHasListings(address owner)
+    {
+        require(_ownerListings[owner].length > 0, "Invalid List Id");
+        _;
     }
     
     
-    function addListing(string calldata _url, uint rent, uint reservation, uint deposit) external returns(uint id)
+    // Add a new listing
+    function addListing(string calldata listingURI, uint rent) external returns(uint id)
     {
-
-        listingsId.increment();
-        uint listId = uint(listingsId.current());
+        // Calculate the reservation fee and the depoist fee
+        uint reservation = rent.mul(2).div(7) ; // reservationFee is 2/7th of the rent for the week
+        uint deposit = rent; // Depoist is 7/7 of the rent, i.e. same as the rent
+    
+        _listingsId.increment();
+        uint listId = _listingsId.current();
+        
+        // Instantiate a new listing and fill it up 
         Listing memory newListing;
         newListing.id = listId;
-        newListing.Url = _url;
+        newListing.Url = listingURI;
         newListing.rent = rent;
         newListing.reservation = reservation;
         newListing.deposit = deposit;
         newListing.owner = msg.sender;
         newListing.status = ListStatus.Available;
         newListing.exists = true;
-        //ownerListings[msg.sender].push(newListing);
-        //grantRole(LISTING_OWNER, msg.sender);
-        allListings.push(newListing);
-        ownerListings[msg.sender].push(listId);
-        return id;
+    
+        // Add to all listings
+        _allListings.push(newListing);
+        // Push listingId on the owner's array of lists
+        _ownerListings[msg.sender].push(listId);
+     
+        emit ListingAdded(listId, msg.sender, listingURI);
+        
+        return listId;
+    
+    }
+    function getIndexOfOwnerListingId(uint listingId, address owner) private view returns(uint)
+    {
+        
+        uint index;
+        //Search for the index of the listId in ownerList
+        for (uint i=0; i< _ownerListings[owner].length; i.add(1) )
+        {
+            if (listingId == _ownerListings[owner][i])
+            {
+                // index found
+                index = i;
+                continue;
+            }
+            
+        }
+        return index;
+
+    }
+    // Update a new listing
+    // things that can be updated are as follows
+    // URI, rent, owner, status
+    function updateListing(
+        uint listingId,
+        string calldata listingURI, 
+        uint rent,
+        address payable  owner,
+        ListStatus status
+        ) external 
+    {
+        // If  rent has changed, update reservation and deposit as well
+        if (rent != _allListings[listingId.sub(1)].rent)
+        {
+            // Calculate the reservation fee and the depoist fee
+            uint reservation = rent.mul(2).div(7) ; // reservationFee is 2/7th of the rent for the week
+            uint deposit = rent; // Depoist is 7/7 of the rent, i.e. same as the rent
+            _allListings[listingId.sub(1)].rent = rent;
+            _allListings[listingId.sub(1)].reservation = reservation;
+            _allListings[listingId.sub(1)].deposit = deposit;
+        
+        }
+        // Save old owner
+        address payable oldOwner = _allListings[listingId.sub(1)].owner;
+        
+        // Update all fields
+        _allListings[listingId.sub(1)].Url = listingURI;
+        _allListings[listingId.sub(1)].owner = owner;
+        _allListings[listingId.sub(1)].Url = listingURI;
+        _allListings[listingId.sub(1)].status = status;        
+
+        
+        // To Think how to remove listing from ownerlisting??
+        // This will cost too much gas
+        // Have to research more
+        
+         //Get Index of the listingId in ownerListings
+        uint index;
+        index = getIndexOfOwnerListingId(listingId, oldOwner);
+        
+        // remove the listing from old owner 
+        delete _ownerListings[oldOwner][index];
+         
+         // Add the new owner
+        _ownerListings[owner].push(listingId);
+     
+        // emit event
+        emit ListingUpdated(listingId, owner, listingURI);
 
     }
     
-    modifier listingExists(uint _listingId)
+    // Get the owner of the listing for the listingId
+    function getListingOwner(uint listingId) public view OnlyIfListingIdExists(listingId) returns (address payable)
     {
-        require(_listingId <= listingsId.current(), "No listings");
-        _;
+        return _allListings[listingId - 1].owner;
     }
     
-    function getListingOwner(uint _listingId) public view listingExists(_listingId) returns (address payable)
+    // Get the status of the listing for the listingId
+    function getListingStatus(uint listingId) public view OnlyIfListingIdExists(listingId) returns (ListStatus)
     {
-        return allListings[_listingId - 1].owner;
-    }
-
-    function getListingStatus(uint _listingId) public view listingExists(_listingId) returns (uint)
-    {
-        return uint(allListings[_listingId - 1].status);
+        return _allListings[listingId.sub(1)].status;
     }
     
-    function getListingByOwner(address owner) public view returns (Listing[] memory)
+    // Get the listings for the owner
+    function getListingByOwner(address owner) public view OnlyIfOwnerHasListings(owner) returns (Listing[] memory)
     {
-        uint count = ownerListings[owner].length;
+        uint count = _ownerListings[owner].length;
         Listing[] memory tempListing = new Listing[](count);
         for (uint i =0; i <= count; i++)
         {
-            tempListing[i] = allListings[ownerListings[owner][i] -1];
+            tempListing[i] = _allListings[_ownerListings[owner][i].sub(1)];
         }
         return tempListing;
     }
-    
-    function getListingById(uint _listingId) public view listingExists(_listingId)  returns (Listing memory _listing)
+    // Get Listing by Id
+    function getListingById(uint listingId) public view OnlyIfListingIdExists(listingId)  returns (Listing memory)
     {
-        return allListings[_listingId - 1];
+        return _allListings[listingId.sub(1)];
     }
     
-    function getListingsByStatus(ListStatus _status) public view returns (Listing[] memory _listing)
+    // Get Listing by Status
+    function getListingsByStatus(ListStatus _status) public view  returns (Listing[] memory )
     {
         uint count;
         uint i;
-        for (i=0; i< allListings.length; i++ )
+        for (i=0; i< _allListings.length; i.add(1) )
         {
-            if (allListings[i].status == _status)
+            if (_allListings[i].status == _status)
             {
-                count++;
+                count.add(1);
             }
             
         }
         uint k;
         Listing[] memory tempListings = new Listing[](count);
-        for (i=0; i< allListings.length; i++ )
+        for (i=0; i< _allListings.length;  i.add(1) )
         {
-            if (allListings[i].status == _status)
+            if (_allListings[i].status == _status)
             {
-                tempListings[k] = allListings[i];
-                k++;
+                tempListings[k] = _allListings[i];
+                k.add(1);
             }
             
         }
         return tempListings;
     }
     
-    
-    function addRemove(uint _listingId) external listingExists(_listingId)
+    // Remove listing, as its expensive to delete from an array, we will just mark
+    // the listing is marked as removed, HAVE TO ASK FOR BETTER WAY
+    function addRemove(uint listingId) external OnlyIfListingIdExists(listingId)
     {
         
-        allListings[_listingId].status = ListStatus.UnAvailable;
+        _allListings[listingId.sub(1)].status = ListStatus.Removed;
+         //Get Index of the listingId in ownerListings
+        uint index = getIndexOfOwnerListingId(listingId, _allListings[listingId.sub(1)].owner);
+        
+        // remove the listing from old owner 
+        delete _ownerListings[_allListings[listingId.sub(1)].owner][index];
+        
+        emit ListingRemoved(listingId, _allListings[listingId].owner, _allListings[listingId].Url);
            
     }
     
-    function getAllListings() public view returns (Listing[] memory) 
+    // Get all listings
+    function getListings() public view OnlyIfListingsNotEmpty() returns (Listing[] memory) 
     {
-        require(listingsId.current() > 0, "No listings");
-        return allListings;
+        return _allListings;
     }
     
+    // Get all listings
+    function getListingsCount() public view OnlyIfListingsNotEmpty() returns (uint) 
+    {
+        return _allListings.length;
+    }
     
-   
+
 }
