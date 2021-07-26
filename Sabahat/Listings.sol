@@ -13,9 +13,9 @@ TO DO: Add more functions, this will only be completed finalized once the front 
 
 */
 
-import "./AdminRole.sol";
+//import "./AdminRole.sol";
 
-
+///Listing Contract
 contract Listings  {
     
     // using counters and safemath
@@ -52,13 +52,14 @@ contract Listings  {
     Listing[] _allListings;
     
     // Admin role
-    Admin admins;
+    //Admin admins;
     
     // events for listing Added, Updated and Removed    
     event ListingAdded(uint indexed listingsId, address indexed owner, string listingURI);
     event ListingRemoved(uint indexed listingsId, address indexed owner, string listingURI);
     event ListingUpdated(uint indexed listingsId, address indexed owner, string listingURI);
-      
+    
+    ///Listings  
     constructor() public {
         // Set Admin role to the deployer ??
         //admins.addAdmin(msg.sender);
@@ -86,8 +87,8 @@ contract Listings  {
     }
     
     
-    // Add a new listing
-    function addListing(string calldata listingURI, uint rent) external returns(uint id)
+    ///Add a new listing
+    function add(string calldata listingURI, uint rent) external returns(uint id)
     {
         // Calculate the reservation fee and the depoist fee
         uint reservation = rent.mul(2).div(7) ; // reservationFee is 2/7th of the rent for the week
@@ -107,7 +108,7 @@ contract Listings  {
         newListing.status = ListStatus.Available;
         newListing.exists = true;
     
-        // Add to all listings
+        //Add to all listings
         _allListings.push(newListing);
         // Push listingId on the owner's array of lists
         _ownerListings[msg.sender].push(listId);
@@ -138,7 +139,7 @@ contract Listings  {
     // Update a new listing
     // things that can be updated are as follows
     // URI, rent, owner, status
-    function updateListing(
+    function update(
         uint listingId,
         string calldata listingURI, 
         uint rent,
@@ -187,19 +188,19 @@ contract Listings  {
     }
     
     // Get the owner of the listing for the listingId
-    function getListingOwner(uint listingId) public view OnlyIfListingIdExists(listingId) returns (address payable)
+    function getOwner(uint listingId) public view OnlyIfListingIdExists(listingId) returns (address payable)
     {
         return _allListings[listingId - 1].owner;
     }
     
     // Get the status of the listing for the listingId
-    function getListingStatus(uint listingId) public view OnlyIfListingIdExists(listingId) returns (ListStatus)
+    function getStatus(uint listingId) public view OnlyIfListingIdExists(listingId) returns (ListStatus)
     {
         return _allListings[listingId.sub(1)].status;
     }
     
     // Get the listings for the owner
-    function getListingByOwner(address owner) public view OnlyIfOwnerHasListings(owner) returns (Listing[] memory)
+    function getByOwner(address owner) public view OnlyIfOwnerHasListings(owner) returns (Listing[] memory)
     {
         uint count = _ownerListings[owner].length;
         Listing[] memory tempListing = new Listing[](count);
@@ -210,13 +211,13 @@ contract Listings  {
         return tempListing;
     }
     // Get Listing by Id
-    function getListingById(uint listingId) public view OnlyIfListingIdExists(listingId)  returns (Listing memory)
+    function getById(uint listingId) public view OnlyIfListingIdExists(listingId)  returns (Listing memory)
     {
         return _allListings[listingId.sub(1)];
     }
     
     // Get Listing by Status
-    function getListingsByStatus(ListStatus _status) public view  returns (Listing[] memory )
+    function getByStatus(ListStatus _status) public view  returns (Listing[] memory )
     {
         uint count;
         uint i;
@@ -244,28 +245,29 @@ contract Listings  {
     
     // Remove listing, as its expensive to delete from an array, we will just mark
     // the listing is marked as removed, HAVE TO ASK FOR BETTER WAY
-    function addRemove(uint listingId) external OnlyIfListingIdExists(listingId)
+    function remove(uint listingId) external OnlyIfListingIdExists(listingId)
     {
         
         _allListings[listingId.sub(1)].status = ListStatus.Removed;
+        address oldOwner = _allListings[listingId.sub(1)].owner;
          //Get Index of the listingId in ownerListings
-        uint index = getIndexOfOwnerListingId(listingId, _allListings[listingId.sub(1)].owner);
+        uint index = getIndexOfOwnerListingId(listingId, oldOwner);
         
         // remove the listing from old owner 
-        delete _ownerListings[_allListings[listingId.sub(1)].owner][index];
+        delete _ownerListings[oldOwner][index];
         
-        emit ListingRemoved(listingId, _allListings[listingId].owner, _allListings[listingId].Url);
+        emit ListingRemoved(listingId, oldOwner, _allListings[listingId -1].Url);
            
     }
     
     // Get all listings
-    function getListings() public view OnlyIfListingsNotEmpty() returns (Listing[] memory) 
+    function getAll() public view OnlyIfListingsNotEmpty() returns (Listing[] memory) 
     {
         return _allListings;
     }
     
     // Get all listings
-    function getListingsCount() public view OnlyIfListingsNotEmpty() returns (uint) 
+    function getCount() public view OnlyIfListingsNotEmpty() returns (uint) 
     {
         return _allListings.length;
     }
