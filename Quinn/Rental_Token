@@ -1,0 +1,84 @@
+pragma solidity ^0.5.0;
+
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/token/ERC721/ERC721Full.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/drafts/Counters.sol";
+
+/**
+    ERC721 Token URI JSON Schema
+    {
+        "title": "Property A",
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": "Seattle"
+            },
+            "bedrooms": {
+                "type": "unit",
+                "description": "2"
+            },
+            "bathrooms": {
+                "type": "uint",
+                "description": "2"
+            }
+        }
+    }
+**/
+
+contract RentalToken is ERC721Full {
+
+    constructor() ERC721Full("RentalToken", "RENT") public { }
+
+    using Counters for Counters.Counter;
+    Counters.Counter token_ids;
+
+// if we don't pass in gwei may need to change object type to uint32
+     struct Token {
+          uint token_id
+          uint property_id
+          address owner_id
+          address recipient_id
+          uint rental_week
+          string contract_uri
+          uint rent;
+     }
+    // Stores token_id => Rent
+    // Only permanent data that you would need to use within the smart contract later should be stored on-chain
+
+    event RentalTokenMinted(uint token_id, uint property_id, uint recipient_id, uint rental_week);
+    
+    //minted token
+    function MintToken(address owner_id, uint property_id, address receipient_id, uint rental_week, string memory contract_uri, uint rent) public returns(uint) {
+        Token memory newtoken;
+          newtoken.property_id=property_id
+          newtoken.owner_id=owner_id
+          newtoken.recipient_id=recipient_id
+          newtoken.rental_week=rental_week
+          newtoken.contract_uri=contract_uri
+          newtoken.rent=rent;
+          
+        token_ids.increment();
+        uint token_id = token_ids.current();
+
+        _mint(recipient_id, token_id);
+        _setTokenURI(token_id, contract_uri);
+
+        return token_id;
+    }
+
+    //breaching contract after pay is nonrefundable and results in accelerated burned. Accelerated burning uses "removeToken()". Removal of token cannot be reminted. Only burned tokens can be reminted. Need to ask Simon how to map removal of token from recipient  
+    function _removeToken(address token_id, uint token_id) public returns(uint) {
+        require(owner_id[token_id] == recipient_id);
+        ownerToNFTokenCount[recipient_id] = ownerToNFTokenCount[recipient_id] - 1;
+        delete owner_id[token_id];
+    }
+    
+    /**Only burned tokens can be reminted. We do not need to remint burned tokens
+    function _burn(uint256 _tokenId) internal validNFToken(_tokenId){  
+    address tokenOwner = idToOwner[_tokenId];
+    _clearApproval(_tokenId);
+    _removeNFToken(tokenOwner, _tokenId);
+    emit Transfer(tokenOwner, address(0), _tokenId);
+    }
+    */
+}
