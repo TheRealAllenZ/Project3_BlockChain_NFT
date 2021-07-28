@@ -1,0 +1,10 @@
+Items to consider for Short term rental agreement
+- Property Details
+- Property owner (owner's block chain address)
+- Info about tenant (their block chain address)
+- Period of tenancy
+- Payment details (property owner's payable wallet)
+- Security/cleaning deposit
+- Amenities included with the property
+- Extra clauses - for example limiting the number of occupants, pet restrictions, 
+quite time 
