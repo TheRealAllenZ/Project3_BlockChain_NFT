@@ -85,6 +85,10 @@ contract BookingToken is ERC721Full, Ownable {
         
         }
     
+    function burn() public {
+        require(msg.sender == _propertyOwner);
+        _burn(_token_id);
+    }
     
      
 

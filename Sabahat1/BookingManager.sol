@@ -118,7 +118,7 @@ contract BookingManager is Ownable {
         require (msg.sender == bToken._propertyOwner(), "Unauthorized" );
         require(bToken._status() == BookingToken.WorkflowStatus.Rented, "Not yet Rented");
      
-        uint withDate = bToken._startDate().add(bToken._noOfWeeks().mul(3600).mul(24).mul(7).add(7 days));
+        uint withDate = bToken._startDate().add(bToken._noOfWeeks().mul(3600).mul(24).div(7).add(5 days));
         require ( _fakenow > withDate, "Too Early" );
       
         uint amount = rents[rentalId];
@@ -139,7 +139,7 @@ contract BookingManager is Ownable {
         require (address(bToken) != address(0), "Invalid Booking" );
         require (msg.sender == bToken._tenant(), "Unauthorized" );
         require(bToken._status() == BookingToken.WorkflowStatus.Rented, "Not yet Rented");
-        uint withDate = bToken._startDate().add(bToken._noOfWeeks().mul(3600).mul(24).mul(7).add(7 days));
+        uint withDate = bToken._startDate().add(bToken._noOfWeeks().mul(3600).mul(24).div(7).add(5 days));
         require (_fakenow > withDate, "Too Early" );
     
         uint amount = deposits[rentalId];
@@ -181,9 +181,47 @@ contract BookingManager is Ownable {
         
     function contractBreached(uint rentalId, address tenant)  public 
     {
+        uint index = tokenIndex[rentalId];
+        BookingToken bToken = bookings[index];
         
-        //tenantCount[rentalTokens[rentalId]._tenant()] = tenantCount[rentalTokens[rentalId]._tenant()] - 1;
-        delete rentalTokens[rentalId];
+        require(bookings[index]._status() == BookingToken.WorkflowStatus.Rented, "Must renred");
+        //require(msg.sender == bToken.propertyOwner(), "Unauthorized");
+        
+        //rentalTokens[]   check if the rentalToken is in the rentalTokens
+        
+        //uint fee = BookingToken.rent.div(2);
+        //?delete propertyBookings[msg.sender][]
+        //?tenantTokens[msg.sender]
+        
+        // refund before it burns        
+
+        delete bookings[index];
+ /*
+     // array of bookings (until it converts to token)
+    BookingToken[] bookings;
+
+    // array of index in  Bookings
+    uint[] public rentalTokens;
+    
+    //mapping of property to index in array
+    mapping(address => uint[]) public propertyBookings;
+
+
+    // tenant => index in BookingToken
+    mapping(address => uint[]) public tenantTokens;
+
+    //bookingid to depoist
+    mapping(uint => uint) deposits;
+    
+    // rentalID to rent
+    mapping(uint => uint) rents;
+  
+    // map of tokenid to index
+    mapping(uint => uint ) tokenIndex;
+
+ */
+        //bToken.burn(rentalId);
+
     
     }
 

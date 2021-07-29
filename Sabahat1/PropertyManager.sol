@@ -70,15 +70,13 @@ contract PropertyManager is Ownable {
         // check to see if any tokens for woner that are still noyt fullfilled
         // if any then dont let removeToken
         //otherwise remove
-        
-        
         uint index = tokenIdToIndex[tokenId];
         delete ownerTokens[owner][index] ;
         ownerCount[owner] = ownerCount[owner] - 1;
         delete tokenIdToIndex[tokenId];
         delete propertyTokens[index];
         PropertyToken pToken = propertyTokens[index];
-        pToken.remove();
+        //pToken.remove();
     }
 
 

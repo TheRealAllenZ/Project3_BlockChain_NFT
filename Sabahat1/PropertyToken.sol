@@ -120,7 +120,8 @@ contract PropertyToken is ERC165, ERC721Full, Ownable  {
         
         
     }
-    function remove() public {
-        //??? not sure what to do
+    function burn() public {
+        require(msg.sender == propertyOwner);
+        _burn(tokenId);
     }
 }
