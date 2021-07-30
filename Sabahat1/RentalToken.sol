@@ -5,89 +5,114 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/ownership/Ownable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/math/SafeMath.sol"; 
 
+/*
+    @dev Token for rental Access of a property 
+*/
 
-
-contract BookingToken is ERC721Full, Ownable {
+contract BookingToken is ERC165, ERC721Full, Ownable {
 
     using SafeMath for uint;
-    using Counters for Counters.Counter;
-        
+    
+    // workflow Status of the contract untill it is minted
+    // NonRefundableFee Required => Deposit Required => Rent Required => Rented
     enum WorkflowStatus {NonRefundableFeeRequired, DepositRequired, RentRequired, Rented}
+        
+    // All properties of the rental
+    // booking/tokenId
+    uint public tokenId;
+    // Address of the property
+    address public propertyToken;
+    // Owner of the property
+    address payable public propertyOwner;
+    // tenant that wants to rent
+    address payable public tenant;
+    // Start of rental
+    uint public startDate;
+    // Nof of weeeks to rent
+    uint public noOfWeeks;
+    // rent of the rental
+    uint public  rent;
+    // deposit of the rental
+    uint public  deposit;
+    // nonrefundable fee of the rental
+    uint public  nonRefundable;
+    // status in workflow
+    WorkflowStatus public status;
     
-    Counters.Counter _tokenIds;
-
-    uint public _token_id;
-    address public _propertyToken;
-    address payable public _propertyOwner;
-    address payable public _tenant;
-    uint public _startDate;
-    uint public _noOfWeeks;
-    uint public  _rent;
-    uint public  _deposit;
-    uint public  _nonRefundable;
-    WorkflowStatus public _status;
-    
-    
-    constructor(uint tokenId, string memory propertyURI, 
-        address propertyToken, 
-        address payable owner, 
-        address payable tenant, 
-        uint startDate, 
-        uint noOfWeeks, 
-        uint rent, 
-        uint deposit, 
-        uint nonRefundable) 
-        ERC721Full("Booking Token", "BKT") public {
-            _token_id = tokenId;
-            _propertyToken = propertyToken;
-            _propertyOwner = owner;
-            _tenant = tenant;
-            _startDate = startDate;
-            _noOfWeeks = noOfWeeks;
-            _rent = rent;
-            _deposit = deposit;
-            _nonRefundable = nonRefundable;
-            _status = WorkflowStatus.DepositRequired;
-        _setBaseURI(propertyURI);
+    // Construct the token
+    constructor(uint Id,  string memory propURI,
+        address propToken, 
+        address payable propOwner, 
+        address payable propTenant, 
+        uint startRentedDate, 
+        uint noOfWeeksRented, 
+        uint rentFee, 
+        uint depositFee, 
+        uint nonRefundableFee) 
+        ERC721Full("Booking Token", "BKT") public  {
+            tokenId = Id;
+            propertyToken = propToken;
+            propertyOwner = propOwner;
+            tenant = propTenant;
+            startDate = startRentedDate;
+            noOfWeeks = noOfWeeksRented;
+            rent = rentFee;
+            deposit = depositFee;
+            nonRefundable = nonRefundableFee;
+            status = WorkflowStatus.DepositRequired;
+        _setBaseURI(propURI);
     }
+
+    // set decimals to 0, as each token is unqiue and one of a kind, as this pops up in metamask
+    function decimals() external pure returns(uint) {
+        return 0;
+    }
+
+    //@ dev get detials of the token
+    function getDetails() external view returns (
+                                        uint,
+                                        address , 
+                                        address , 
+                                        address , 
+                                        uint , 
+                                        uint , 
+                                        uint , 
+                                        uint , 
+                                        uint , WorkflowStatus)  {
+                                            return (tokenId, propertyToken, 
+            propertyOwner,
+            tenant,
+            startDate,
+            noOfWeeks,
+            rent,
+            deposit,
+            nonRefundable,
+            status);
+        }
     
-    function getDetails(uint index) public view returns (address , 
-        address , 
-        address , 
-        uint , 
-        uint , 
-        uint , 
-        uint , 
-        uint , WorkflowStatus)  {
-            return (_propertyToken, 
-            _propertyOwner,
-            _tenant,
-            _startDate,
-            _noOfWeeks,
-            _rent,
-            _deposit,
-            _nonRefundable,
-            _status);
+    // @dev change status to deposit
+    function depositRequest() external onlyOwner() {
+            status = WorkflowStatus.RentRequired;
         }
-
-    function deposit() public {
-            _status = WorkflowStatus.RentRequired;
-        }
-
-    function _mintNft(string memory tokenURI, uint tokenId) public returns (uint)
+    // mint the nft for rental access
+    function _mintNft(string calldata URI, uint Id) external onlyOwner() returns (uint)
         {
-            require(!_exists(tokenId), "Token Already Exists");
-            _status = WorkflowStatus.Rented;
-            _mint(_tenant, tokenId );
-            _setTokenURI(tokenId, tokenURI);
-            _token_id = tokenId;
-            return _token_id;
+            // make sure token id does not exists
+            require(!_exists(Id), "Token Already Exists");
+            tokenId = Id;
+            // set status to rented
+            status = WorkflowStatus.Rented;
+            // mint the token to the tenant
+            _mint(tenant, Id );
+            // set URI
+            _setTokenURI(Id, URI);
+            return tokenId;
         
         }
-    
-    function burn() public {
-        require(msg.sender == _propertyOwner);
-        _burn(_token_id);
+    // @dev burn the token 
+    function burn(address propTenant) external onlyOwner() {
+        require(propTenant == tenant, "Not your token");
+        _burn(tokenId);
     }
     
      
