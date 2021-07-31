@@ -39,6 +39,14 @@ contract BookingToken is ERC165, ERC721Full, Ownable {
     // status in workflow
     WorkflowStatus public status;
     
+    
+    // Events generated 
+    event NonRefundable(uint indexed tokenId, address  indexed renter, uint indexed amount);
+    event Deposit(uint indexed tokenId, address  indexed renter, uint indexed amount);
+    event TokenMinted(uint indexed tokenId, address  indexed renter, string indexed rentalURI, uint amount);
+    event TokenBurned(uint indexed tokenId, address  indexed renter);
+    
+
     // Construct the token
     constructor(uint Id,  string memory propURI,
         address propToken, 
@@ -61,6 +69,7 @@ contract BookingToken is ERC165, ERC721Full, Ownable {
             nonRefundable = nonRefundableFee;
             status = WorkflowStatus.DepositRequired;
         _setBaseURI(propURI);
+        emit NonRefundable(tokenId, tenant, nonRefundable);
     }
 
     // set decimals to 0, as each token is unqiue and one of a kind, as this pops up in metamask
@@ -92,8 +101,9 @@ contract BookingToken is ERC165, ERC721Full, Ownable {
     
     // @dev change status to deposit
     function depositRequest() external onlyOwner() {
-            status = WorkflowStatus.RentRequired;
-        }
+        status = WorkflowStatus.RentRequired;
+        emit Deposit(tokenId, tenant, deposit);
+    }
     // mint the nft for rental access
     function _mintNft(string calldata URI, uint Id) external onlyOwner() returns (uint)
         {
@@ -106,6 +116,8 @@ contract BookingToken is ERC165, ERC721Full, Ownable {
             _mint(tenant, Id );
             // set URI
             _setTokenURI(Id, URI);
+            
+            emit TokenMinted(tokenId, tenant, URI, rent);
             return tokenId;
         
         }
@@ -113,6 +125,7 @@ contract BookingToken is ERC165, ERC721Full, Ownable {
     function burn(address propTenant) external onlyOwner() {
         require(propTenant == tenant, "Not your token");
         _burn(tokenId);
+        emit TokenBurned(tokenId, tenant);
     }
     
      

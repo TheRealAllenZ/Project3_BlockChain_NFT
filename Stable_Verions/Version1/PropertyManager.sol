@@ -21,21 +21,22 @@ contract PropertyManager is Ownable {
     }
     
     // array of all tokens
-    PropertyToken[] public propertyTokens;
+    PropertyToken[] public  propertyTokens;
     
     // tokenid to index
-    mapping(uint => uint) tokenIdToIndex;
+    mapping(uint => uint) public tokenIdToIndex;
     
     // owner to index of the token in in the tokens array 
-    mapping(address => uint[]) public ownerTokens;
+    mapping(address => uint[]) /*public*/ ownerTokens;
 
     // counter to generate id for each new token 
     Counters.Counter _tokenIds;  
     
     // mappings of weeks avaiable
-    mapping(uint => WeeksAvailable[]) public weeksAvailable;
+    mapping(uint => WeeksAvailable[]) /*public*/ weeksAvailable;
 
     mapping(string => uint) public addressToToken;
+    
     //fall back function to accept eth
     function() external payable { } 
  
@@ -59,7 +60,9 @@ contract PropertyManager is Ownable {
         _tokenIds.increment();
         uint tokenId = _tokenIds.current();
         // Instantiate the token
+    
         PropertyToken token = new PropertyToken("Adieu Coin", "ADIEU");
+        
         
         // Add details, cant send all the parameters in mind as stack to deep error
         token.add(pAddr, ipfsAddress, rent, startDate, endDate);
@@ -82,7 +85,7 @@ contract PropertyManager is Ownable {
         addressToToken[pAddr] = tokenId;
         
         // Generate the array of lists for the token
-        _generateWeeks(index);
+        //_generateWeeks(index);
         
         return tokenId;
                         
@@ -97,7 +100,7 @@ contract PropertyManager is Ownable {
     //@ dev get details of the token, this is for the UI 
     // returns all properties of the token at an index 
     // Will remove this function once can figure out how react can load an object via web3 
-    function getTokenDetails(uint index) external view returns 
+    function getDetails(uint index) external view returns 
                                                 (
                                                 uint token_id,  
                                                 string memory pAddr, 

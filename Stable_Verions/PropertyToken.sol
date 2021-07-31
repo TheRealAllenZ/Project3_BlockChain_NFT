@@ -29,10 +29,14 @@ contract PropertyToken is ERC165, ERC721Full, Ownable  {
     string public ifpsAddress;
     // rent of property
     uint public rent;
+    
+    
     // nonrefundableFee - basically service fee that the renter will pay
     uint public nonRefundable;
     // depoist required
     uint public deposit;
+    
+    
     // status of the property
     Status public propertyStatus;
     
@@ -44,8 +48,8 @@ contract PropertyToken is ERC165, ERC721Full, Ownable  {
     uint public endAvailability;
 
     // Events generated 
-    event ListingAdded(uint indexed tokenId, address  indexed propertyOwner, string indexed listingURI);
-    event ListingRemoved(uint indexed tokenId, address  indexed propertyOwner, string indexed listingURI);
+    event AdieuMinted(uint indexed tokenId, address  indexed propertyOwner, string indexed listingURI);
+    event AdieuBurned(uint indexed tokenId, address  indexed propertyOwner, string indexed listingURI);
     
     // Constrctors
     constructor(string memory name, string memory symbol) ERC721Full(name, symbol)  public {
@@ -82,20 +86,17 @@ contract PropertyToken is ERC165, ERC721Full, Ownable  {
         require(!_exists(Id), "Token Already Exists");
         // set tokenId
         tokenId = Id;
-        
+        propertyOwner = receiver;
         // mint the token to the receiver
         _mint(receiver, tokenId);
         
         // set the token URI
         _setTokenURI(tokenId, tokenURI);
         
-        // Calculate the reservation fee and the depoist fee
-        nonRefundable = rent.mul(2).div(7) ; // reservationFee is 2/7th of the rent for the week
-        deposit = rent; // Deposit is 7/7 of the rent, i.e. same as the rent
         // set Status
         propertyStatus = Status.Available;
 
-       // emit ListingAdded(tokenId, receiver, ifps);
+        emit AdieuMinted(Id, receiver, ifpsAddress);
     }
     
     // Get Details of the token
@@ -124,10 +125,13 @@ contract PropertyToken is ERC165, ERC721Full, Ownable  {
     }
    
     //@ dev burn the token 
-    function burn(address propOwner) public onlyOwner() {
-        require(propOwner == propertyOwner, "Not your token")
-        _burn(tokenId);
+    function burn() external onlyOwner() {
+       _burn(tokenId);
+       emit AdieuBurned(tokenId, propertyOwner, ifpsAddress);
     }
 
- 
+    function exists() external view returns(bool) {
+        return _exists(tokenId);
+    }
+     
 }
