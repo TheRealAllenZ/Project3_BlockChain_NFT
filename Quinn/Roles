@@ -1,160 +1,33 @@
 pragma solidity ^0.5.0;
-
+    
 contract RenterRoles {
   event RoleCreated(uint256 role);
   event BearerAdded(address owner, uint256 role);
   event BearerRemoved(address owner, uint256 role);
-  uint256 constant NO_ROLE = 0;
-  /**
-   * A role, which will be used to group users.
-   * The role id is its position in the roles array.
-   * description A description for the role.
-   * admin The only role that can add or remove bearers from
-   * this role. To have the role bearers to be also the role admins 
-   * you should pass roles.length as the admin role.
-   * bearers Addresses belonging to this role.
-   */
-  struct Role {
-    string description;
-    uint256 contractadmin;
-    uint256 propertyowner;
-    mapping (address => bool) bearers;
-  }
-  /**
-   * All roles ever created.
-   */
-  Role[] public roles;
-  /**
-   * The contract constructor, empty as of now.
-   */
+ // Role => person address => exists
+  mapping(string => mapping(address => bool)) private  roles;
+  //role => count
+  mapping(string => uint) private roleCount;
   constructor() public {
-    addRootRole("NO_ROLE");
   }
-  
-    /**
-   * Create a new role that has itself as an admin. 
-   * msg.sender is added as a bearer.
-   * _roleDescription The description of the role created.
-   * Return The role id.
-   */
-  function addRootRole(string memory _roleDescription)
-    public
-    returns(uint256)
-  {
-    uint256 role = addRole(_roleDescription, roles.length);
-    roles[role].bearers[msg.sender] = true;
-    emit BearerAdded(msg.sender, role);
+ function addBearer(string calldata role, address person )    external {
+    if (!roles[role][person] )
+    {
+        roles[role][person] = true;
+        roleCount[role] += 1;
+    }
   }
-  
-  /**
-   * No admin role. Tokens will be completely decentralized 
-   * Create a new role.
-   * _roleDescription The description of the role created.
-   * _contractadmin The role that is allowed to add and remove
-   * bearers from the role being created.
-   * Returns the role id.
-   */
-   
-   //add role for property owner
-  function addRole(string memory _roleDescription, uint256 _propertyowner)
-    public
-    returns(uint256)
-  {
-    require(_contractadmin <= roles.length, "Admin role doesn't exist.");
-    uint256 role = roles.push(
-      Role({
-        description: _executepropertyfunctions,
-        role: _propertyowner
-      })
-    ) - 1;
-    emit RoleCreated(role);
-    return role;
-  }
-  
-    //add role for property renter
-  function addRole(string memory _roleDescription, uint256 _contractadmin)
-    public
-    returns(uint256)
-  {
-    require(_contractadmin <= roles.length, "Admin role doesn't exist.");
-    uint256 role = roles.push(
-      Role({
-        description: _ability_to_mint_rental_tokens_via_payments,
-        role: _propertyrenter
-      })
-    ) - 1;
-    emit RoleCreated(role);
-    return role;
-  }
-  /**
-   * Retrieve the number of roles in the contract.
-   * The zero position in the roles array is reserved for
-   * NO_ROLE and doesn't count towards this total.
-   */
-  function totalRoles()
-    public
-    view
-    returns(uint256)
-  {
-    return roles.length - 1;
-  }
-  /**
-   * Verify whether an account is a bearer of a role
-   * _account The account to verify.
-   * _role The role to look into.
-   * Whether the account is a bearer of the role.
-   */
-  function hasRole(address _owner, uint256 _role)
-    public
+  function hasRole(address person, string calldata role)
+    external
     view
     returns(bool)
   {
-    return _role < roles.length && roles[_role].bearers[_account];
+    return roles[role][person];
   }
-  /**
-   * A method to add a bearer to a role
-   * _account The account to add as a bearer.
-   * _role The role to add the bearer to.
-   */
-  function addBearer(address _owner, uint256 _role)
-    public
+  function removeBearer(address person, string calldata role)
+    external
   {
-    require(
-      _role < roles.length,
-      "Role doesn't exist."
-    );
-    require(
-      hasRole(msg.sender, roles[_role].contractadmin),
-      "User can't add bearers."
-    );
-    require(
-      !hasRole(_account, _role),
-      "Account is bearer of role."
-    );
-    roles[_role].bearers[_account] = true;
-    emit BearerAdded(_account, _role);
-  }
-  /**
-   * @notice A method to remove a bearer from a role
-   * @param _account The account to remove as a bearer.
-   * @param _role The role to remove the bearer from.
-   */
-  function removeBearer(address _owner, uint256 _role)
-    public
-  {
-    require(
-      _role < roles.length,
-      "Role doesn't exist."
-    );
-    require(
-      hasRole(msg.sender, roles[_role].contractadmin),
-      "User can't remove bearers."
-    );
-    require(
-      hasRole(_account, _role),
-      "Account is not bearer of role."
-    );
-    delete roles[_role].bearers[_account];
-    emit BearerRemoved(_account, _role);
+        roles[role][person] = false;
+        delete roles[role][person];
   }
 }
