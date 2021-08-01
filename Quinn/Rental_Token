@@ -1,134 +1,121 @@
 pragma solidity ^0.5.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/token/ERC721/ERC721Full.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/drafts/Counters.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/ownership/Ownable.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v2.5.0/contracts/math/SafeMath.sol";
 
-/**
-    ERC721 Token URI JSON Schema
-    {
-        "title": "Property A",
-        "type": "object",
-        "properties": {
-            "location": {
-                "type": "string",
-                "description": "Seattle"
-            },
-            "bedrooms": {
-                "type": "unit",
-                "description": "2"
-            },
-            "bathrooms": {
-                "type": "uint",
-                "description": "2"
-            }
+
+/*
+    @dev Token for rental Access of a property 
+*/
+
+contract BookingToken is ERC165, ERC721Full, Ownable {
+
+    using SafeMath for uint;
+    
+    // workflow Status of the contract untill it is minted
+    // NonRefundableFee Required => Deposit Required => Rent Required => Rented
+    enum WorkflowStatus {NonRefundableFeeRequired, DepositRequired, RentRequired, Rented}
+        
+    // All properties of the rental
+    // booking/tokenId
+    uint public tokenId;
+    // Address of the property
+    address public propertyToken;
+    // Owner of the property
+    address payable public propertyOwner;
+    // tenant that wants to rent
+    address payable public tenant;
+    // Start of rental
+    uint public startDate;
+    // Nof of weeeks to rent
+    uint public noOfWeeks;
+    // rent of the rental
+    uint public  rent;
+    // deposit of the rental
+    uint public  deposit;
+    // nonrefundable fee of the rental
+    uint public  nonRefundable;
+    // status in workflow
+    WorkflowStatus public status;
+    
+    // Construct the token
+    constructor(uint Id,  string memory propURI,
+        address propToken, 
+        address payable propOwner, 
+        address payable propTenant, 
+        uint startRentedDate, 
+        uint noOfWeeksRented, 
+        uint rentFee, 
+        uint depositFee, 
+        uint nonRefundableFee) 
+        ERC721Full("Booking Token", "BKT") public  {
+            tokenId = Id;
+            propertyToken = propToken;
+            propertyOwner = propOwner;
+            tenant = propTenant;
+            startDate = startRentedDate;
+            noOfWeeks = noOfWeeksRented;
+            rent = rentFee;
+            deposit = depositFee;
+            nonRefundable = nonRefundableFee;
+            status = WorkflowStatus.DepositRequired;
+        _setBaseURI(propURI);
+    }
+
+    // set decimals to 0, as each token is unqiue and one of a kind, as this pops up in metamask
+    function decimals() external pure returns(uint) {
+        return 0;
+    }
+
+    //@ dev get detials of the token
+    function getDetails() external view returns (
+                                        uint,
+                                        address , 
+                                        address , 
+                                        address , 
+                                        uint , 
+                                        uint , 
+                                        uint , 
+                                        uint , 
+                                        uint , WorkflowStatus)  {
+                                            return (tokenId, propertyToken, 
+            propertyOwner,
+            tenant,
+            startDate,
+            noOfWeeks,
+            rent,
+            deposit,
+            nonRefundable,
+            status);
         }
-    }
-**/
-
-contract RentalToken is ERC721Full {
-
-    constructor() ERC721Full("RentalToken", "RENT") public { }
-
-    using Counters for Counters.Counter;
-    Counters.Counter token_ids;
-
-// if we don't pass in gwei may need to change object type to uint32
-     struct Token {
-          uint token_id
-          address property_id       //add rentaladdress will be added if multiple rental address to a property address
-          address owner_id
-          address recipient_id
-          address recipient2_id
-          uint startdate
-          uint rental_week
-          string contract_uri
-          uint rent;
-     }
-     
-     //what mapping do we need to the property token?
-     
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event RemovalToken(address indexed owner, address indexed spender, uint256 value);
-    event LengthOfStay(uint rental_week, uint startdate)
-    
-    // Stores token_id => Rent
-    // Only permanent data that you would need to use within the smart contract later should be stored on-chain
-
-    event RentalTokenMinted(uint token_id, uint property_id, uint recipient_id, uint rental_week);
-    
-    //minted token
-    function MintToken(address owner_id, address property_id, address recipient_id, uint rental_week, string memory contract_uri, uint rent) public returns(uint) {
-        Token memory newtoken;
-          newtoken.property_id=property_id
-          newtoken.owner_id=owner_id
-          newtoken.recipient_id=recipient_id
-          newtoken.rental_week=rental_week
-          newtoken.contract_uri=contract_uri
-          newtoken.rent=rent;
-          
-        token_ids.increment();
-        uint token_id = token_ids.current();
-
-        _mint(recipient_id, token_id);
-        _setTokenURI(token_id, contract_uri);
-
-        return token_id;
-    }
-
-    }
-    **/
-    
-    //modifier for expired time
-    modifier onlyRecipient() {
-        require(msg.sender == recipient_id);
-        _;}
-
-    function deposit(uint256 amount) public payable {
-        require(msg.value == amount);}
-
-    function rent(uint256 numberOfDays) public payable {
-        owner = msg.sender;
-        deadline = now + (numberOfWeeks * 7 days);}
-
-    function withdraw() public onlyOwner {
-        require(now >= deadline);
-
-        msg.sender.transfer(address(this).balance);}
         
-    //breaching contract after pay is nonrefundable and results in accelerated burned. Accelerated burning uses "removeToken()". Removal of token cannot be reminted. Only burned tokens can be reminted. Need to ask Simon how to map removal of token from recipient  
-    //First, we clearApproval(), then remove the token from ownership via removeTokenFrom() and use the Transfer event to alert this change on the front end
-    
-    /** try this removetoken function if function below does not work.
-    function RemoveToken(address recipient_id, uint token_id) public returns(uint) {
-        require(owner_id[token_id] == recipient_id);
-        recipient_id[token_id] = recipient_id[token_id] - 1;
-        delete owner_id[token_id];
-    **/
-
-    function RemoveToken(Token address recipient_id, uint token_id)) private {
-        require(ownerOf(token_id) == recipient_id);
+    // @dev change status to deposit
+    function depositRequest(uint hasRole) external onlyOwner() {
+        require(hasRole.has(msg.sender), "DOES NOT HAVE ROLE");
+            status = WorkflowStatus.RentRequired;
+        }
+    // mint the nft for rental access
+    function _mintNft(string calldata URI, uint Id, uint hasRole) external onlyOwner() returns (uint)
+        {
+            // make sure token id does not exists
+            require(hasRole.has(msg.sender), "DOES NOT HAVE ROLE");
+            tokenId = Id;
+            // set status to rented
+            status = WorkflowStatus.Rented;
+            // mint the token to the tenant
+            _mint(tenant, Id );
+            // set URI
+            _setTokenURI(Id, URI);
+            return tokenId;
         
-        /**needed to remove token id from token list of given address in our property id array
-        uint256 tokenIndex = ownedTokensIndex[token_id];
-        uint256 lastTokenIndex = balanceOf(owner_id).sub(1);
-        **/
-
-        recipient_id[token_id] = 0;
+        }
+    // @dev burn the token 
+    function burn(address propTenant, uint hasRole) external onlyOwner() {
+        require(hasRole.has(msg.sender), "DOES NOT HAVE ROLE");
+        _burn(tokenId);
     }
     
-    // transferring from a existing recipient to a new recipient
-    function ClearApprovalAndTransfer(address recipient_id, address recipient2_id, uint256 _tokenId) internal {
-        require(_to != address(0));
-        require(_to != recipient_id(token_id));
-        require(recipient_id(token_id) == owner_id);
+     
 
-        clearApproval(owner_id, token_id);
-        removeToken(owner_id, token_id);
-        addToken(recipient2_id, token_id);
-        Transfer(owner_id, recipient2_id, token_id);
-    }
-    
-    //need to add start day function, is this included in the mint function?
-    //how to attach number of weeks to start date? Is this just a string function?
-    //Deposit and rent payable just from and to address separately
-    //how to add workflowstate
+}
